@@ -46,7 +46,7 @@ type ScoreTransaction = {
 }
 
 type ScoreboardProps = {
-  transactions: RoastTidEvent[] | RoastTidEvent | null
+  transactions?: RoastTidEvent[] | RoastTidEvent | null
 }
 
 type ScoreColumn = {
@@ -86,7 +86,7 @@ const probabilityValues = (values: RoastTidProbabilities) => {
 const normalizeEvent = (event: RoastTidEvent): ScoreTransaction => ({
   eventId: event.roast_event,
   timestamp: event.timestamp ?? new Date().toISOString(),
-  opponent: event.answers.team.choice === 'THE_HUMAN' ? 'human' : 'ai',
+  opponent: event.speaker === 'THE_HUMAN' ? 'human' : 'ai',
   score: event.answers.brutality.score,
   confidence: event.answers.brutality.confidence ?? null,
   transcripts: event.transcript,
@@ -185,6 +185,31 @@ export function RoasTTidScoreboard({ transactions }: ScoreboardProps) {
       return [...currentRows, ...newRows]
     })
   }, [incomingEvents])
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        typeof data.roast_event !== 'string' ||
+        !data.answers?.brutality
+      ) {
+        return
+      }
+
+      const incoming = normalizeEvent(data as RoastTidEvent)
+      setRows((currentRows) => {
+        if (currentRows.some((row) => row.eventId === incoming.eventId)) {
+          return currentRows
+        }
+        return [...currentRows, incoming]
+      })
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
 
   const totals = useMemo(() => (['human', 'ai'] as const).map((side) => {
     const sideRows = rows.filter((row) => normalizeSide(row.opponent) === side)
