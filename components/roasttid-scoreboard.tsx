@@ -64,13 +64,20 @@ type ColumnResize = {
 
 const minColumnWidth = 8
 
+const brutalityTiers = [
+  '0 · Trash Tier',
+  '1 · Mild Burn',
+  '2 · Solid Cook',
+  '3 · Violated',
+  '4 · Smokathon Domination',
+  '5 · Extinction Event',
+]
+
 const scoreColumns: ScoreColumn[] = [
-  { key: 'eventId', label: 'Event ID', className: 'event-id' },
   { key: 'opponent', label: 'Opponent' },
   { key: 'score', label: 'Score', className: 'score-cell' },
   { key: 'confidence', label: 'Confidence' },
   { key: 'transcripts', label: 'Transcripts', className: 'transcript-cell' },
-  { key: 'timestamp', label: 'Timestamp' },
 ]
 
 const humanColor = '#b7ff36'
@@ -130,7 +137,7 @@ export function RoasTTidScoreboard({ transactions }: ScoreboardProps) {
   const [shareMessage, setShareMessage] = useState('')
   const [rows, setRows] = useState<ScoreTransaction[]>([])
   const [selectedTransaction, setSelectedTransaction] = useState<ScoreTransaction | null>(null)
-  const [columnWidths, setColumnWidths] = useState(() => scoreColumns.map(() => 100 / scoreColumns.length))
+  const [columnWidths, setColumnWidths] = useState(() => [16, 12, 14, 58])
   const lastInputRows = useRef<RoastTidEvent[]>([])
   const columnResize = useRef<ColumnResize | null>(null)
 
@@ -338,22 +345,45 @@ export function RoasTTidScoreboard({ transactions }: ScoreboardProps) {
 
       <Dialog open={selectedTransaction !== null} onOpenChange={(open) => { if (!open) setSelectedTransaction(null) }}>
         {selectedTransaction && (
-          <DialogContent>
-            <div className="transaction-dialog-header">
-              <p className="scoreboard-kicker">EVENT DETAILS</p>
-              <DialogTitle>{selectedTransaction.eventId || 'Transaction details'}</DialogTitle>
-              <DialogDescription>Complete event data and transcript.</DialogDescription>
+          <DialogContent className="sm:max-w-[600px] bg-black text-[#f6f6f4] border border-[#292c2e] rounded-[24px] p-7 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 text-left">
+              <div className="space-y-2">
+                <span className={`opponent-pill ${selectedTransaction.opponent}`}>
+                  {displaySide(selectedTransaction.opponent)}
+                </span>
+                <DialogTitle className="text-2xl font-bold tracking-tight text-white">
+                  {brutalityTiers[Math.min(5, Math.max(0, Math.round(selectedTransaction.score)))]}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-[#a0a3a5]">
+                  Judge Confidence: {selectedTransaction.confidence == null ? '—' : `${(Number(selectedTransaction.confidence) * 100).toFixed(1)}%`}
+                </DialogDescription>
+              </div>
+              <div className="text-right">
+                <div className="text-5xl font-bold tracking-tighter text-white leading-none">
+                  {formatScore(selectedTransaction.score)}
+                  <span className="text-sm font-medium text-[#a0a3a5] ml-1 tracking-normal">pts</span>
+                </div>
+              </div>
             </div>
-            <dl className="transaction-details">
-              {Object.entries(selectedTransaction.source).map(([key, value]) => (
-                <div className="transaction-detail" key={key}>
-                  <dt>{detailLabel(key)}</dt>
-                  <dd className={key.toLowerCase().includes('transcript') || (value !== null && typeof value === 'object') ? 'transaction-detail-long' : undefined}>
-                    {key === 'timestamp' ? dateLabel(String(value)) : detailValue(value)}
-                  </dd>
+
+            <div className="bg-[#090a0a] border border-[#292c2e] rounded-2xl my-2 p-5 text-lg leading-relaxed text-white font-medium">
+              “{selectedTransaction.transcripts}”
+            </div>
+
+            <div className="space-y-3 pt-1">
+              {selectedTransaction.probabilities.map((prob, idx) => (
+                <div className="grid grid-cols-[190px_1fr_56px] items-center gap-3 text-sm" key={idx}>
+                  <span className="text-[#a0a3a5] font-semibold">{brutalityTiers[idx]}</span>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-[#171819]">
+                    <div
+                      className="h-full rounded-full bg-[#b7ff36]"
+                      style={{ width: `${Math.min(Math.max(prob, 0), 1) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-right font-bold text-white">{(prob * 100).toFixed(1)}%</span>
                 </div>
               ))}
-            </dl>
+            </div>
           </DialogContent>
         )}
       </Dialog>
